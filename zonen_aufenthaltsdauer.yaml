@@ -23,6 +23,7 @@ blueprint:
     | float(0) / 60) | round(1) }}`, Einheit h.'
   domain: automation
   author: EdgarM73
+  source_url: https://github.com/EdgarM73/ha-blueprints/blob/main/zonen_aufenthaltsdauer.yaml
   homeassistant:
     min_version: 2024.10.0
   input:
