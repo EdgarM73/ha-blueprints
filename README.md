@@ -23,7 +23,7 @@ Tracks the total time a person spends in a zone (e.g. gym, sports club, office) 
 Create these two helpers first under *Settings → Devices & services → Helpers*:
 
 | Helper | Settings | Purpose |
-|---|---|---|
+| --- | --- | --- |
 | Date and/or time | Mode "Date and time" | Stores the time of entering |
 | Number | Min 0, max e.g. 1000000, step 1, unit `min`, display mode "Input field" | Stores the total minutes |
 
