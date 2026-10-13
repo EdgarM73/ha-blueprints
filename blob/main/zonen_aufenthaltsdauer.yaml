@@ -1,0 +1,139 @@
+blueprint:
+  name: Aufenthaltsdauer in einer Zone aufsummieren
+  description: 'Merkt sich, wann eine Person eine Zone betritt (z. B. Fitnessstudio,
+    Sportverein, Büro), und addiert beim Verlassen die Aufenthaltsdauer in Minuten
+    auf einen Zahlen-Helfer. Die Startzeit liegt in einem Datum/Zeit-Helfer und übersteht
+    dadurch Neustarts von Home Assistant. Unplausible Dauern (GPS-Ausreißer, verpasstes
+    Betreten) werden ignoriert.
+
+
+    **Vorher anlegen (Einstellungen → Geräte & Dienste → Helfer):**
+
+    1. Datum und/oder Uhrzeit – Modus „Datum und Uhrzeit“ (für die Startzeit)
+
+    2. Zahl – Minimum 0, Maximum z. B. 1000000, Schrittweite 1, Einheit min, Anzeige
+    „Eingabefeld“ (für die Gesamtminuten)
+
+
+    **Optional für Stunden:** Template-Sensor mit `{{ (states(''input_number.DEIN_HELFER'')
+    | float(0) / 60) | round(1) }}`, Einheit h.'
+  domain: automation
+  author: Erdal
+  homeassistant:
+    min_version: 2024.10.0
+  input:
+    wer_wo:
+      name: Person und Zone
+      icon: mdi:map-marker-account
+      input:
+        person:
+          name: Person
+          description: Wessen Aufenthalt gezählt werden soll.
+          selector:
+            entity:
+              domain:
+              - person
+              multiple: false
+        zone:
+          name: Zone
+          description: Ort, an dem die Zeit gezählt wird (z. B. Fitnessstudio).
+          selector:
+            entity:
+              domain:
+              - zone
+              multiple: false
+    helfer:
+      name: Helfer
+      icon: mdi:database
+      input:
+        start_helper:
+          name: Startzeit-Helfer
+          description: Datum/Zeit-Helfer mit Datum UND Uhrzeit. Speichert den Zeitpunkt
+            des Betretens.
+          selector:
+            entity:
+              domain:
+              - input_datetime
+              multiple: false
+        total_helper:
+          name: Gesamtminuten-Helfer
+          description: Zahlen-Helfer, auf den die Minuten aufaddiert werden. Maximum
+            ausreichend hoch setzen.
+          selector:
+            entity:
+              domain:
+              - input_number
+              multiple: false
+    plausibilitaet:
+      name: Plausibilitätsprüfung
+      icon: mdi:filter-check
+      collapsed: true
+      input:
+        min_minutes:
+          name: Mindestdauer
+          description: Kürzere Aufenthalte werden nicht gezählt (z. B. Vorbeifahren).
+          default: 1
+          selector:
+            number:
+              min: 0
+              max: 120
+              step: 1
+              unit_of_measurement: min
+              mode: box
+        max_minutes:
+          name: Höchstdauer
+          description: Längere Aufenthalte werden verworfen (z. B. verpasstes Betreten-Ereignis).
+          default: 360
+          selector:
+            number:
+              min: 10
+              max: 1440
+              step: 10
+              unit_of_measurement: min
+              mode: box
+mode: queued
+max_exceeded: silent
+variables:
+  start_helper: !input start_helper
+  total_helper: !input total_helper
+  min_dauer: !input min_minutes
+  max_dauer: !input max_minutes
+triggers:
+- trigger: zone
+  entity_id: !input person
+  zone: !input zone
+  event: enter
+  id: betreten
+- trigger: zone
+  entity_id: !input person
+  zone: !input zone
+  event: leave
+  id: verlassen
+actions:
+- choose:
+  - conditions:
+    - condition: trigger
+      id: betreten
+    sequence:
+    - alias: Betretungszeit merken
+      action: input_datetime.set_datetime
+      target:
+        entity_id: !input start_helper
+      data:
+        timestamp: '{{ now().timestamp() }}'
+  - conditions:
+    - condition: trigger
+      id: verlassen
+    sequence:
+    - variables:
+        minuten: '{{ ((now().timestamp() - as_timestamp(states(start_helper), 0))
+          / 60) | round(0) | int }}'
+    - alias: Nur plausible Dauer
+      condition: template
+      value_template: '{{ min_dauer <= minuten <= max_dauer }}'
+    - alias: Dauer aufaddieren
+      action: input_number.set_value
+      target:
+        entity_id: !input total_helper
+      data:
+        value: '{{ states(total_helper) | float(0) + minuten }}'
