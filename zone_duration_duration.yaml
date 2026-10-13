@@ -1,0 +1,141 @@
+# Zone Duration Tracker
+# Copyright (c) 2026 EdgarM73
+# License: MIT – https://opensource.org/license/mit
+# Source: https://github.com/EdgarM73/ha-blueprints
+
+blueprint:
+  name: Zone Duration Tracker
+  description: >-
+    Remembers when a person enters a zone (e.g. gym, sports club, office) and,
+    on leaving, adds the time spent there in minutes to a number helper. The
+    start time is stored in a date/time helper, so it survives Home Assistant
+    restarts. Implausible durations (GPS glitches, missed enter events) are
+    ignored.
+
+
+    **Create these helpers first (Settings → Devices & services → Helpers):**
+
+    1. Date and/or time – mode "Date and time" (stores the start time)
+
+    2. Number – minimum 0, maximum e.g. 1000000, step 1, unit min,
+    display mode "Input field" (stores the total minutes)
+
+
+    **Optional, total in hours:** template sensor with
+    `{{ (states('input_number.YOUR_HELPER') | float(0) / 60) | round(1) }}`,
+    unit h.
+  domain: automation
+  author: EdgarM73
+  source_url: https://github.com/EdgarM73/ha-blueprints/blob/main/zone_duration_tracker.yaml
+  homeassistant:
+    min_version: "2024.10.0"
+  input:
+    who_where:
+      name: Person and zone
+      icon: mdi:map-marker-account
+      input:
+        person:
+          name: Person
+          description: Whose time should be tracked.
+          selector:
+            entity:
+              domain: person
+        zone:
+          name: Zone
+          description: Place where time is tracked (e.g. gym).
+          selector:
+            entity:
+              domain: zone
+    helpers:
+      name: Helpers
+      icon: mdi:database
+      input:
+        start_helper:
+          name: Start time helper
+          description: Date/time helper with date AND time. Stores the moment of entering.
+          selector:
+            entity:
+              domain: input_datetime
+        total_helper:
+          name: Total minutes helper
+          description: Number helper the minutes are added to. Set its maximum high enough.
+          selector:
+            entity:
+              domain: input_number
+    plausibility:
+      name: Plausibility check
+      icon: mdi:filter-check
+      collapsed: true
+      input:
+        min_minutes:
+          name: Minimum duration
+          description: Shorter stays are not counted (e.g. driving past).
+          default: 1
+          selector:
+            number:
+              min: 0
+              max: 120
+              step: 1
+              unit_of_measurement: min
+              mode: box
+        max_minutes:
+          name: Maximum duration
+          description: Longer stays are discarded (e.g. missed enter event).
+          default: 360
+          selector:
+            number:
+              min: 10
+              max: 1440
+              step: 10
+              unit_of_measurement: min
+              mode: box
+
+mode: queued
+max_exceeded: silent
+
+variables:
+  start_helper: !input start_helper
+  total_helper: !input total_helper
+  min_duration: !input min_minutes
+  max_duration: !input max_minutes
+
+triggers:
+  - trigger: zone
+    entity_id: !input person
+    zone: !input zone
+    event: enter
+    id: enter
+  - trigger: zone
+    entity_id: !input person
+    zone: !input zone
+    event: leave
+    id: leave
+
+actions:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: enter
+        sequence:
+          - alias: Store enter time
+            action: input_datetime.set_datetime
+            target:
+              entity_id: !input start_helper
+            data:
+              timestamp: "{{ now().timestamp() }}"
+      - conditions:
+          - condition: trigger
+            id: leave
+        sequence:
+          - variables:
+              minutes: >-
+                {{ ((now().timestamp() - as_timestamp(states(start_helper), 0)) / 60) | round(0) | int }}
+          - alias: Only plausible durations
+            condition: template
+            value_template: "{{ min_duration <= minutes <= max_duration }}"
+          - alias: Add duration to total
+            action: input_number.set_value
+            target:
+              entity_id: !input total_helper
+            data:
+              value: "{{ states(total_helper) | float(0) + minutes }}"
