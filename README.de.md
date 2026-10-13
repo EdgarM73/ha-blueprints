@@ -23,7 +23,7 @@ Zählt, wie lange eine Person insgesamt in einer Zone verbringt (z. B. Fitnessst
 Lege vorher unter *Einstellungen → Geräte & Dienste → Helfer* diese zwei Helfer an:
 
 | Helfer | Einstellungen | Zweck |
-|---|---|---|
+| --- | --- | --- |
 | Datum und/oder Uhrzeit | Modus „Datum und Uhrzeit“ | Speichert den Zeitpunkt des Betretens |
 | Zahl | Min 0, Max z. B. 1000000, Schrittweite 1, Einheit `min`, Anzeige „Eingabefeld“ | Speichert die Gesamtminuten |
 
