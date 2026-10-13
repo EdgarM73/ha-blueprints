@@ -1,3 +1,7 @@
+# Aufenthaltsdauer in einer Zone aufsummieren
+# Copyright (c) 2026 EdgarM73
+# Lizenz: MIT – https://opensource.org/license/mit
+# Quelle: https://github.com/EdgarM73/ha-blueprints/tree/main
 blueprint:
   name: Aufenthaltsdauer in einer Zone aufsummieren
   description: 'Merkt sich, wann eine Person eine Zone betritt (z. B. Fitnessstudio,
@@ -18,7 +22,7 @@ blueprint:
     **Optional für Stunden:** Template-Sensor mit `{{ (states(''input_number.DEIN_HELFER'')
     | float(0) / 60) | round(1) }}`, Einheit h.'
   domain: automation
-  author: Erdal
+  author: EdgarM73
   homeassistant:
     min_version: 2024.10.0
   input:
